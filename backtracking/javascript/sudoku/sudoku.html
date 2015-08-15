@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<head>
+  <title> Sudoku 1.0 </title>
+  <!--
+  <script src ="spreadsheet.js" type="text/javascript">	</script>
+-->
+
+</head>
+
+<style>
+.cell {
+  width:30px;
+  height:30px;
+  border: solid 1px;
+  text-align: center;
+  vertical-align: middle;
+}
+</style>
+
+<script>
+
+// Sudoku solver using backtracking, rnd 2015
+
+//ALGORITHM:
+
+// On each step:
+// 1. choose unused field with minimal free entries. if during search field with no free entries goto 2, else goto 3
+// 2 CONTRADICTION: if exists, fetch recent field from stack, pick its next possible free entry, goto 1.
+//   if no field on stack, end. in no such entry  unmark field as used, reset its tried list and goto 2
+// 3. push current field onto stack.  Mark field as used, add selected entry to the tried list for that field 3. goto 1
+
+
+function setup_game_area(m,n){
+  //document.getElementById('out');
+  var i,j;
+  var square = function(row,col){
+    var tab = ""; tab=tab+'<table style = "border:solid 1px" cellspacing = "0px" border = "0" cellpadding ="0">';
+    for (var i=0;i<m;i++){
+      tab=tab+'<tr>';
+      for (var j=0;j<n;j++){
+        tab=tab+'<td> <input value ="" maxlength="1" class ="cell" id='+ (m*row+i)+'_'+(n*col+j)+' onclick="this.select();" onkeyup ="check_entry(this.id,this.value)"> </td>'; // TO DO: fix ids
+      }
+      tab=tab+'</tr>';
+    }
+    tab=tab+'</table>';
+    return tab;
+  }
+  var out =""; out=out+'<table style = "border:solid 1px" cellspacing = "0px" cellpadding="0">';
+  for (i=0;i<m;i++){
+    out=out+'<tr>';
+    for (j=0;j<n;j++){
+      out=out+'<td>'+square(i,j)+'</td>';
+    }
+    out=out+'</tr>';
+  }
+  out=out+'</table>';
+  return out;
+}
+
+function Sudoku(m,n) // constructor
+{
+  this.m = m; this.n=n;
+  this.data = new Array(m);
+  this.stack = []; // stack containing used fields in form [i,j]
+  var count = 0;
+  //init
+  for (var i=0;i<m;i++) {
+    this.data[i] = {};//new Array(n);
+    for (var j=0;j<n;j++){
+      this.data[i][j]={};
+      this.data[i][j].value=0; // curenty entry for i,j, number from 1 to m*n, 0 means not yet assigned
+      this.data[i][j].used=0; // is this item already in stack
+      this.data[i][j].tried = new Array(m); // already tried entry list for each field
+    }
+  }
+
+
+  this.free = function(i,j) { // returns table representing free numbers for i,j
+   var m = Math.sqrt(this.m), n=Math.sqrt(this.n);
+   var row = Math.floor(i/m);var col =  Math.floor(j/n);
+   var ret = new Array(m*n+1);
+   var k,l,entry;
+
+   for (k=0;k<n*m;k++){   //check row
+       entry = this.data[i][k].value;
+       if (entry>0 && k!=j) {
+         ret[entry] = 1; // mark as occupied
+       }
+  }
+
+  for (k=0;k<m*m;k++){   //check column
+      entry = this.data[k][j].value;
+      if (entry>0 && k!=i) {
+        ret[entry] = 1; // mark as occupied
+      }
+    }
+
+   for (k=0;k<m;k++){   //check smaller containing m.n square
+     for (l=0;l<m;l++){
+       entry = this.data[row*m+k][col*n+l].value;
+       if (entry>0 && row*m+k!=i && col*n+l!=j) {
+        ret[entry] = 1; // mark as occupied
+       }
+     }
+   }
+   return ret;
+
+  }
+
+
+  this.step = function() // do one iteration of backtracking with constraint
+  {
+    var m = this.m,n=this.n; // find unused field with minimal free entries
+    var free;
+    var i,j,k;
+    var backtrack = 1;
+    var min_entries=m+1,entries=m,imin=0,jmin=0;
+    var used = 0;
+
+    for (i=0;i<m;i++){
+      for (j=0;j<n;j++){
+        if (this.data[i][j].used == 1) {used++; continue;} // skip fields already in stack
+          free = this.free(i,j);entries = m;
+          for (k=1;k<=m;k++) {if (free[k]==1) {entries--;}} // how many free entries: ERROR HERE!!!!
+          if (entries<min_entries) {min_entries = entries; imin = i;jmin = j; backtrack = 0;}
+
+        if (entries == 0) {
+          //alert(" warning: no entries for field "+i+" " +j);
+          backtrack = 1;break; break;
+        }
+      }
+    }
+
+    if (used == m*n) {
+      alert("all fields completed.");
+      return 1;
+    }
+
+    if (backtrack == 1) {
+      //alert("stack size " + this.stack.length);
+      var next_try=-1;
+
+      while (next_try==-1) {
+        if (this.stack.length==0) {
+          alert("error: empty stack.");
+          return -1;
+        }
+        var field = this.stack.pop(); var i = field[0]; var j = field[1];
+        //alert("popped field  " +field + ". already tried " + this.data[i][j].tried);
+        // try select next possible value for popped field
+        var tried = this.data[i][j].tried;
+        free = this.free(i,j);
+        for (k=0;k<m;k++) {
+          if (tried[k]!=1 && free[k+1]!=1){ // found yet untried and free value
+            next_try = k+1;break;
+          }
+        }
+
+        // when value selected resume normal operation, get ready for next step
+        if (next_try!=-1) {
+          //alert("trying next possible value " + next_try);
+          this.data[i][j].value = next_try;
+          this.data[imin][jmin].tried[next_try-1] = 1; // 0...m-1
+          document.getElementById(i+'_'+j).value = next_try;
+          document.getElementById(i+'_'+j).style.backgroundColor = "yellow";
+          break;
+        }
+        else
+        // if no possible value, mark field as unused, reset its tried values and pop another field from stack
+        {
+          this.data[i][j].used = 0;
+          this.data[i][j].value = -1;document.getElementById(i+'_'+j).value=-1;
+          document.getElementById(i+'_'+j).style.backgroundColor = "red";
+          for (k=0;k<this.data[i][j].tried.length;k++) {this.data[i][j].tried[k]=0;}
+        }
+      }
+    }
+    else
+    {
+      //add field to stack, mark it as used, select one free entry
+      this.data[imin][jmin].used = 1;this.stack.push([imin,jmin]);
+      free = this.free(imin,jmin);
+      //alert("added field " +imin + " " + jmin + " to stack. free entries " + min_entries);
+      // randomly choose a free untried entry
+      var count = m; for (k=0;k<free.length;k++) {if (free[k]==1) {count--;}}; count=Math.floor((Math.random() * count) + 1);
+      for (k=1;k<free.length;k++) {if (free[k]!=1) {count--;}; if (count==0) {break;}};
+      this.data[imin][jmin].value = k;
+      this.data[imin][jmin].tried[k-1] = 1; // 0...m-1
+      document.getElementById(imin+'_'+jmin).value = k;
+      document.getElementById(imin+'_'+jmin).style.backgroundColor = "green";
+    }
+    return 0;
+  }
+}
+
+
+var sudoku;
+function init_game(){
+  m=3;
+  n=m;
+  document.getElementById('out').innerHTML = setup_game_area(m,n);
+  sudoku = new Sudoku(m*m,n*n);
+  //sudoku.generate();
+}
+
+
+function check_entry(id,value){ // called when manually entering values
+
+  var k = id.indexOf("_");
+  var i = id.substr(0,k); var j = id.substr(k+1,id.length-k);
+
+  var free = sudoku.free(i,j);
+  if (free[value]==1) {
+    alert("error. choose another value");
+    document.getElementById(id).value = "";document.getElementById(id).blur();
+    sudoku.data[i][j].used = 0;
+  }
+   else
+  {
+    sudoku.data[i][j].value = value; document.getElementById(id).value = value;
+    sudoku.data[i][j].used = 1;
+  }
+}
+
+
+</script>
+
+<body>
+    <h3> Sudoku solver 1.0</h3>
+    <p> Algorithm: backtracking, rnd 2015 </p>
+    <p> Instructions: Click (re)start. Then click field and enter values. Finally use solve or do one step. </p>
+    <button id = "start" onclick = "try {init_game();} catch(err) {alert(err.message);}" style = "width: 100px; height: 25px;"> (Re)start </button>
+    <button id = "step" onclick = "try {sudoku.step();} catch(err) {alert(err.message);}" style = "width: 100px; height: 25px;"> Do one step </button>
+    <button id = "solve" onclick = "while (sudoku.step()==0) {};" style = "width: 100px; height: 25px;"> Solve </button>
+    <div id = "out"> </div>
+    <p> Legend: GREEN selected value, YELLOW backtracking, RED out of options when backtracking </p>
+</body>
+
+</html>
