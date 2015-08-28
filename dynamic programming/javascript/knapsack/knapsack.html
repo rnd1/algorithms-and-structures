@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<head>
+  <title> 0/1 Knapsack </title>
+  <!--
+  <script src ="spreadsheet.js" type="text/javascript">	</script>
+-->
+
+</head>
+
+<style>
+.cell {
+  width:30px;
+  height:30px;
+  border: solid 1px;
+  text-align: center;
+  vertical-align: middle;
+}
+</style>
+
+<script>
+
+// 0/1 knapsack problem, rnd 2015
+// https://en.wikipedia.org/wiki/Knapsack_problem#0.2F1_knapsack_problem
+
+//PROBLEM:
+// w1,...,wn are known weights of items and v1,...,vn known values. Let f(n,w)=max sum_i ci*vi with constraint sum_i ci*wi<=w.
+// In words: Select items to maximize their total value while not exceeding prescribed total weight.
+
+// How to do it: either wn is in optimal selection or not, so: f(n,w) = max ( vn+f(n-1,w-wn) , f(n-1,w) ).
+// its also evident that f(1,w) =v1 if w1<=w and 0 if w1>w. now we just need a scheme to calculate those numbers...
+// for example: f(3,w) = max v3 + f(2,w-w3) , f(2,w)
+
+//f(1,w)    f(1,w-w2)   f(1,w-w3) f(1,w-w3-w2) f(1,w-w4) f(1,w-w4-w2) f(1,w-w4-w3) f(1,w-w4-w3-w2)
+//f(2,w)    f(2,w-w3)   f(2,w-w4) f(2,w-w4-w3)
+//f(3,w)    f(3,w-w4)
+//f(4,w)
+
+//We see that i-th row contains 2^(n-i) items.. For larger n this number is too large for practical purposes. We use memoization (remember calculated values)
+//to speed up the computation.
+
+
+//ALGORITHM :
+// When weights wi are non integer scheme is pretty complicated. We will use simple recursion instead.
+// For faster computation we store computed values in associative array (memoization). When solve function is called it first checks if value
+ //exists already to speed up recursion significantly.
+
+// We can display what elements are used by carefully examining decision tree.
+
+
+
+
+Knapsack = function () {
+  this.w = []; // weights
+  this.v = []; // values
+  this.n=0; // how many items
+  this.W = 1; // target weight
+  this.mem={}; // memoization array
+  this.select = []; // array of optimal selections
+  this.solution_bounded = function()
+  {
+    var solution=this.solve_bounded(this.w.length,this.W);
+    var select = "";
+    // to see which items were selected we traverse the binary decision tree from top and examine memoization array
+    var t1,t2,i,W;
+    var vtest =  0;
+    W=this.W;
+    for (i=this.n;i>=1;i--){
+      if (W<=0) {break;} // nothing left
+
+      t1=this.mem[(i-1)+"_"+W]; // without i
+      if (this.w[i-1]<=W) {
+        t2=this.v[i-1]+this.mem[(i-1)+"_"+(W-this.w[i-1])]; // with i
+      }
+      else {t2=0;} // doesnt fit
+
+      if (i==1) { // cause i-1 above is not defined
+        if (W-this.w[i-1]<0) {break;} else {
+          {t1=0;t2=1;}
+        }
+      }
+
+      if (t1>t2) {} else {
+        W=W-this.w[i-1];select = select + i + "., ";
+        vtest=vtest+this.v[i-1];
+      }
+    }
+
+    var obj = document.getElementById('out');
+    var val;
+    val = "SOLUTION: optimal selection has value " + solution  + " and consists of elements " + select;
+    val = val+" check of optimal selection : solution "+solution +", sum of selected values " + vtest;
+    obj.innerHTML=val;
+    return;
+  }
+
+  this.solve_bounded = function (n,W)
+  {
+    var t=0;
+    if (n==1) {
+      if (this.w[0]<=W) {t=this.v[0];}
+      else {t=0;}
+      this.mem[n+"_"+W]=t; return t;
+    }
+
+    if (this.mem.hasOwnProperty(n+"_"+W)) {return this.mem[n+"_"+W]}; // we already computed this
+
+    if (this.w[n-1]>W) { // no space remains
+          t=this.solve_bounded(n-1,W);
+          this.mem[n+"_"+W]=t
+          return t;
+        }
+
+    var t1,t2;
+    t1=this.solve_bounded(n-1,W); // without n-1
+    t2=this.v[n-1]+this.solve_bounded(n-1,W-this.w[n-1]); // with n-1
+    if (t1>t2) {t=t1;} else {t=t2;}
+    this.mem[n+"_"+W]=t;
+    return t;
+  }
+
+}
+
+
+getInput= function() {
+  var val = document.getElementById('input').value;
+  var w,W,v; eval(val);
+  var knapsack = new Knapsack();
+  knapsack.w = w;
+  knapsack.v=v;
+  knapsack.W=W;
+  knapsack.n = w.length;
+  try {knapsack.solution_bounded();} catch(err) {alert(err.message);}
+}
+
+randGenerate = function() {
+  var obj = document.getElementById('input');
+  var val;
+  var N = 50; // how many items
+  var max = 100; // maximum weight/value for random generator
+  val = 'w=[';
+  for(i=0;i<N;i++) { // initialization with random weights and values
+    val=val+(Math.floor(Math.random()*max) + 1)+',';
+  };
+  val=val.substr(0,val.length-1)+"]; // weights\nv=[";
+  for(i=0;i<N;i++) { // initialization with random weights and values
+    val=val+(Math.floor(Math.random()*max) + 1)+',';
+  };
+  val=val.substr(0,val.length-1)+"]; //values \nW="+N*max*0.25+'; // maximum allowed weight';
+  obj.value=val;
+}
+
+
+</script>
+
+
+<body>
+
+    <h3> 0/1 Knapsack solver</h3>
+    <a href = "https://en.wikipedia.org/wiki/Knapsack_problem">  Knapsack problem description </a>
+    <p> rnd 2015 </p>
+    <p> Algorithm: optimal selection value: dynamic programming, recursion with memoization; determination of optimal selection: examination of recursion tree</p>
+    <p> Instructions: Input values and click solve.</p>
+
+
+    <button id = "solve" onclick = "getInput();"> Solve </button>
+    <button id = "generate" onclick = "randGenerate();"> Randomly generate inputs </button>
+    <hr>
+    <textarea id ="input" rows = "4" cols = "50">
+w=[12,2,1,1,4]; // weights
+v=[4,2,2,1,10]; // values
+W=15; // maximum allowed weight
+     </textarea>
+
+    <div id = "out"> </div>
+</body>
+
+</html>
