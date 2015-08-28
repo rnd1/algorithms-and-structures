@@ -63,7 +63,7 @@ Knapsack = function () {
     var select = "";
     // to see which items were selected we traverse the binary decision tree from top and examine memoization array
     var t1,t2,i,W;
-    var vtest =  0;
+    var vtest =  0, wtest = 0;
     W=this.W;
     for (i=this.n;i>=1;i--){
       if (W<=0) {break;} // nothing left
@@ -81,15 +81,18 @@ Knapsack = function () {
       }
 
       if (t1>t2) {} else {
-        W=W-this.w[i-1];select = select + i + "., ";
+        W=W-this.w[i-1];
+        if (W<0) {continue;}
+        select = select + i + "., ";
         vtest=vtest+this.v[i-1];
+        wtest = wtest+this.w[i-1];
       }
     }
 
     var obj = document.getElementById('out');
     var val;
     val = "SOLUTION: optimal selection has value " + solution  + " and consists of elements " + select;
-    val = val+" check of optimal selection : solution "+solution +", sum of selected values " + vtest;
+    val = val+" checks: value of selection " + vtest + ", weight of selection " + wtest;
     obj.innerHTML=val;
     return;
   }
@@ -166,7 +169,7 @@ randGenerate = function() {
     <button id = "solve" onclick = "getInput();"> Solve </button>
     <button id = "generate" onclick = "randGenerate();"> Randomly generate inputs </button>
     <hr>
-    <textarea id ="input" rows = "4" cols = "50">
+    <textarea id ="input" rows = "6" cols = "80">
 w=[12,2,1,1,4]; // weights
 v=[4,2,2,1,10]; // values
 W=15; // maximum allowed weight
